@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Signal Log: Case Files — A Security Adventure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!--
+  ANALYTICS: free, privacy-friendly, no cookies (GoatCounter).
+  1. Sign up free at https://www.goatcounter.com (pick a site code, e.g. "the-signal-log").
+  2. Replace MYCODE below with that site code.
+  3. Your dashboard at https://MYCODE.goatcounter.com will show plays, completions, and feedback clicks.
+-->
+<script data-goatcounter="https://MYCODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<style>
+  :root{
+    --bg1:#151233; --bg2:#1E1B4A; --bg3:#241F5C;
+    --panel:#FFFDF8; --panel-2:#F3EEFF; --ink:#221A3E; --muted:#6E668C; --line:#E4DDF5;
+    --conf:#2FB8A6; --conf-tint:#DFF8F3;
+    --integ:#FB923C; --integ-tint:#FFF1E2;
+    --avail:#8B5CF6; --avail-tint:#F1EBFF;
+    --gold:#FFC93C; --bad:#FF5A6E; --good:#2FD08A;
+    --easy:#2FD08A; --medium:#FFC93C; --hard:#FF5A6E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(700px 400px at 10% -5%, #FF6B9A26 0%, transparent 55%),
+      radial-gradient(700px 450px at 100% 0%, #34D1BF26 0%, transparent 55%),
+      radial-gradient(600px 400px at 50% 100%, #8B5CF626 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+    color:var(--panel); font-family:'Nunito', sans-serif; min-height:100vh;
+    padding:0 0 50px;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 18px;}
+  h1,h2,h3{font-family:'Fredoka', sans-serif; margin:0;}
+  button{font-family:'Fredoka', sans-serif; cursor:pointer;}
+
+  /* ---------- HUD ---------- */
+  #hud{
+    display:none; position:sticky; top:0; z-index:20;
+    background:rgba(21,18,51,0.92); backdrop-filter:blur(6px);
+    border-bottom:2px solid #3A3480; padding:12px 18px;
+  }
+  #hud.show{display:block;}
+  .hud-inner{max-width:760px; margin:0 auto; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+  .hearts{display:flex; gap:3px; font-size:19px;}
+  .heart{transition:transform .2s ease;}
+  .heart.lost{filter:grayscale(1) opacity(.35);}
+  .xp-block{flex:1; min-width:160px;}
+  .xp-top{display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; color:#C9C2EE; margin-bottom:3px;}
+  .xp-track{height:9px; background:#2A2560; border-radius:999px; overflow:hidden; border:1.5px solid #423B8C;}
+  .xp-fill{height:100%; background:linear-gradient(90deg,var(--gold),#FFB020); border-radius:999px; transition:width .5s ease;}
+  .rank-tag{font-size:12px; font-weight:700; color:var(--gold);}
+  .hud-btn{
+    background:#2A2560; border:1.5px solid #423B8C; color:#E4DEFF; border-radius:10px;
+    width:34px; height:34px; font-size:15px; display:flex; align-items:center; justify-content:center;
+  }
+  .timer-wrap{display:none; align-items:center; gap:8px; width:100%; margin-top:8px;}
+  .timer-wrap.show{display:flex;}
+  .timer-track{flex:1; height:8px; background:#2A2560; border-radius:999px; overflow:hidden; border:1.5px solid #423B8C;}
+  .timer-fill{height:100%; background:var(--good); border-radius:999px; transition:width .2s linear, background .3s ease;}
+  .timer-fill.warn{background:var(--integ);}
+  .timer-fill.danger{background:var(--bad);}
+  .timer-num{font-family:'Fredoka',sans-serif; font-weight:700; font-size:12.5px; color:#E4DEFF; width:28px; text-align:right;}
+
+  /* ---------- Screens ---------- */
+  .screen{display:none; padding:26px 0;}
+  .screen.show{display:block;}
+
+  /* Title */
+  #screenTitle{text-align:center; padding-top:44px;}
+  .title-icon{font-size:52px; margin-bottom:6px;}
+  #screenTitle h1{font-size:clamp(26px,6vw,38px); color:#FFFDF8; letter-spacing:.5px;}
+  #screenTitle .sub{color:#C9C2EE; font-size:15px; max-width:46ch; margin:10px auto 20px; line-height:1.6;}
+  .principle-row{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:460px; margin:0 auto 16px;}
+  .pchip{background:rgba(255,255,255,0.06); border:1.5px solid #423B8C; border-radius:14px; padding:12px 8px; font-size:12px;}
+  .pchip .ic{font-size:20px; display:block; margin-bottom:4px;}
+  .pchip b{display:block; font-family:'Fredoka',sans-serif; font-size:12.5px; margin-bottom:2px;}
+  .pchip span{color:#C9C2EE; font-size:11px; line-height:1.4;}
+  .level-row{display:flex; gap:8px; justify-content:center; margin:0 auto 26px; flex-wrap:wrap;}
+  .level-chip{
+    font-family:'Fredoka',sans-serif; font-size:11.5px; font-weight:600; padding:6px 12px; border-radius:999px;
+    border:1.5px solid; display:flex; align-items:center; gap:5px;
+  }
+  .level-chip.easy{border-color:var(--easy); color:var(--easy);}
+  .level-chip.medium{border-color:var(--medium); color:var(--medium);}
+  .level-chip.hard{border-color:var(--hard); color:var(--hard);}
+  .level-chip .dot{width:7px; height:7px; border-radius:50%; background:currentColor;}
+  .big-btn{
+    font-weight:600; font-size:16px; background:var(--gold); color:#4A3400;
+    border:3px solid #221A3E; border-radius:16px; padding:15px 30px;
+    box-shadow:5px 5px 0 #221A3E; transition:transform .1s, box-shadow .1s;
+  }
+  .big-btn:hover{transform:translate(-2px,-2px); box-shadow:7px 7px 0 #221A3E;}
+  .big-btn:active{transform:translate(1px,1px); box-shadow:2px 2px 0 #221A3E;}
+  .board-panel{
+    background:var(--panel); color:var(--ink); border-radius:20px; border:3px solid #221A3E;
+    box-shadow:7px 7px 0 rgba(0,0,0,0.35); padding:20px 22px; margin-top:8px; text-align:left;
+  }
+  .board-panel h3{font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:6px;}
+  .lb-row{display:flex; justify-content:space-between; align-items:center; padding:8px 4px; font-size:13.5px; border-bottom:1px solid var(--line);}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-rank{font-family:'Fredoka',sans-serif; font-weight:700; width:24px; color:var(--muted);}
+  .lb-name{font-weight:700; flex:1; text-align:left; margin-left:6px;}
+  .lb-xp{font-family:'Fredoka',sans-serif; color:var(--conf); font-weight:700;}
+  .lb-empty{color:var(--muted); font-size:13px; text-align:center; padding:6px;}
+
+  /* Map */
+  #screenMap h2{color:#FFFDF8; font-size:22px; text-align:center; margin-bottom:4px;}
+  .map-sub{text-align:center; color:#C9C2EE; font-size:13px; margin-bottom:26px;}
+  .path{position:relative; padding:10px 0 10px; max-width:420px; margin:0 auto;}
+  .path::before{
+    content:""; position:absolute; left:50%; top:20px; bottom:20px; width:3px;
+    background:repeating-linear-gradient(180deg,#423B8C 0 10px, transparent 10px 20px);
+    transform:translateX(-50%); z-index:0;
+  }
+  .act-label{
+    text-align:center; font-family:'Fredoka',sans-serif; font-size:12px;
+    letter-spacing:1px; margin:22px 0 4px; position:relative; z-index:1;
+  }
+  .act-sub{text-align:center; font-size:11px; color:#9E96CC; margin-bottom:14px; position:relative; z-index:1;}
+  .node-row{display:flex; justify-content:center; margin:14px 0; position:relative; z-index:1;}
+  .node-row.left{justify-content:flex-start; padding-left:8%;}
+  .node-row.right{justify-content:flex-end; padding-right:8%;}
+  .node{
+    display:flex; flex-direction:column; align-items:center; gap:5px; width:92px;
+    background:none; border:none; padding:0;
+  }
+  .node-badge{
+    width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:22px; border:3px solid #221A3E; background:#3A3480; color:#fff;
+    box-shadow:3px 3px 0 rgba(0,0,0,0.3); transition:transform .12s ease;
+  }
+  .node:not(:disabled) .node-badge:hover{transform:scale(1.08);}
+  .node-badge.locked{background:#2A2560; opacity:.55; box-shadow:none;}
+  .node-badge.avail{background:var(--gold); color:#4A3400; animation:pulse 1.6s ease-in-out infinite;}
+  .node-badge.done.conf{background:var(--conf); border-color:#1C8577;}
+  .node-badge.done.integ{background:var(--integ); border-color:#C56C1F;}
+  .node-badge.done.avail{background:var(--avail); border-color:#5A38C4;}
+  @keyframes pulse{0%,100%{box-shadow:3px 3px 0 rgba(0,0,0,0.3), 0 0 0 0 rgba(255,201,60,0.6);} 50%{box-shadow:3px 3px 0 rgba(0,0,0,0.3), 0 0 0 8px rgba(255,201,60,0);}}
+  .node-label{font-family:'Fredoka',sans-serif; font-size:10.5px; color:#D9D3F2; text-align:center; line-height:1.3;}
+  .node-star{position:relative; top:-46px; left:22px; font-size:13px;}
+
+  /* Mission */
+  .mission-panel{
+    background:var(--panel); color:var(--ink); border-radius:20px; border:3px solid #221A3E;
+    box-shadow:7px 7px 0 rgba(0,0,0,0.35); padding:26px 24px; margin-top:14px;
+  }
+  .kicker-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .mission-kicker{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:11.5px; letter-spacing:.5px;
+    display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px;
+  }
+  .mission-kicker.conf{background:var(--conf-tint); color:#177467;}
+  .mission-kicker.integ{background:var(--integ-tint); color:#B5570F;}
+  .mission-kicker.avail{background:var(--avail-tint); color:#5B32B8;}
+  .diff-badge{
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:11px; padding:4px 10px; border-radius:999px;
+    border:1.5px solid;
+  }
+  .diff-badge.easy{border-color:var(--easy); color:#1C9C63; background:#E7FBF2;}
+  .diff-badge.medium{border-color:#E0A800; color:#8A5A00; background:#FFF7DE;}
+  .diff-badge.hard{border-color:var(--hard); color:#C22A44; background:#FFE9EC;}
+  .mission-title{font-size:21px; margin:12px 0 4px;}
+  .mission-hook{font-size:13px; color:var(--muted); font-style:italic; margin-bottom:10px;}
+  .mission-body{font-size:15px; line-height:1.65; color:#3A3452; margin-bottom:18px;}
+  .mission-prompt{font-family:'Fredoka',sans-serif; font-weight:600; font-size:13.5px; margin-bottom:10px;}
+  .options{display:flex; flex-direction:column; gap:9px;}
+  .option{
+    text-align:left; width:100%; background:var(--panel-2); border:2.5px solid var(--line); border-radius:14px;
+    padding:13px 15px; color:var(--ink); font-size:14px; font-weight:600; cursor:pointer; line-height:1.5;
+    display:flex; gap:11px; align-items:flex-start; transition:border-color .12s, background .12s, transform .12s;
+  }
+  .option:hover:not(:disabled){border-color:var(--ink); transform:translateX(2px);}
+  .option .letter{
+    font-family:'Fredoka',sans-serif; font-size:12.5px; font-weight:700; border:2px solid var(--ink); border-radius:50%;
+    width:24px; height:24px; background:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .option.correct{border-color:var(--conf); background:var(--conf-tint);}
+  .option.correct .letter{border-color:var(--conf); background:var(--conf); color:#fff;}
+  .option.eliminated{opacity:.5; cursor:not-allowed; background:#EDEAF4;}
+  .option.eliminated span:not(.letter){text-decoration:line-through; text-decoration-color:var(--muted);}
+  .option.shake{animation:shake .4s ease; border-color:var(--bad); background:#FFEDEF;}
+  .option:disabled{pointer-events:none;}
+  @keyframes shake{10%,90%{transform:translateX(-3px);} 20%,80%{transform:translateX(5px);} 30%,50%,70%{transform:translateX(-7px);} 40%,60%{transform:translateX(7px);}}
+
+  .feedback{margin-top:18px; padding:16px 18px; border-radius:14px; font-size:14px; line-height:1.6; border:2.5px solid;}
+  .feedback.conf{background:var(--conf-tint); border-color:var(--conf);}
+  .feedback.integ{background:var(--integ-tint); border-color:var(--integ);}
+  .feedback.avail{background:var(--avail-tint); border-color:var(--avail);}
+  .feedback .verdict{font-family:'Fredoka',sans-serif; font-weight:700; font-size:15px; margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .feedback .xp-gain{font-family:'Fredoka',sans-serif; font-size:12.5px; color:var(--gold); background:#221A3E; padding:2px 9px; border-radius:999px;}
+  .feedback .why{margin-top:8px; color:#3A3452;}
+  .nav-row{display:flex; justify-content:flex-end; margin-top:20px;}
+
+  /* Game over / Victory */
+  #screenGameOver, #screenVictory{text-align:center; padding-top:36px;}
+  .go-icon{font-size:56px; margin-bottom:8px;}
+  #screenGameOver h2, #screenVictory h2{color:#FFFDF8; font-size:26px; margin-bottom:8px;}
+  .go-sub, .vic-sub{color:#C9C2EE; font-size:14.5px; max-width:44ch; margin:0 auto 22px; line-height:1.6;}
+  .stat-row{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:22px;}
+  .stat-box{background:var(--panel); color:var(--ink); border:3px solid #221A3E; border-radius:14px; padding:12px 18px; min-width:110px; box-shadow:4px 4px 0 rgba(0,0,0,0.3);}
+  .stat-box .lbl{font-family:'Fredoka',sans-serif; font-size:10.5px; color:var(--muted); letter-spacing:.5px;}
+  .stat-box .val{font-family:'Fredoka',sans-serif; font-size:22px; margin-top:2px;}
+  .bar-group{max-width:420px; margin:0 auto 22px; text-align:left; background:var(--panel); border:3px solid #221A3E; border-radius:16px; padding:18px 20px; box-shadow:5px 5px 0 rgba(0,0,0,0.3);}
+  .bar-row{display:grid; grid-template-columns:120px 1fr 42px; align-items:center; gap:10px; margin-bottom:10px; color:var(--ink);}
+  .bar-row .name{font-family:'Fredoka',sans-serif; font-size:12px;}
+  .bar-track{height:10px; background:var(--panel-2); border:1.5px solid var(--line); border-radius:999px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:999px;}
+  .bar-fill.conf{background:var(--conf);} .bar-fill.integ{background:var(--integ);} .bar-fill.avail{background:var(--avail);}
+  .bar-row .pct{font-family:'Fredoka',sans-serif; font-size:11.5px; color:var(--muted); text-align:right;}
+  .name-entry{display:flex; gap:8px; justify-content:center; margin-bottom:20px; flex-wrap:wrap;}
+  .name-entry input{
+    font-family:'Fredoka',sans-serif; font-size:16px; text-align:center; text-transform:uppercase;
+    width:110px; padding:10px; border-radius:10px; border:2.5px solid #221A3E; letter-spacing:2px;
+  }
+  .btn-row{display:flex; gap:12px; justify-content:center; flex-wrap:wrap;}
+  .secondary-btn{
+    background:var(--panel-2); color:var(--ink); border:2.5px solid #221A3E; border-radius:12px;
+    padding:11px 18px; font-size:13.5px; font-weight:600; box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+
+  @media (max-width:480px){
+    .principle-row{grid-template-columns:1fr;}
+    .node-row.left{padding-left:2%;} .node-row.right{padding-right:2%;}
+    .mission-panel, .board-panel{padding:18px 16px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="hud-inner">
+    <div class="hearts" id="hearts"></div>
+    <div class="xp-block">
+      <div class="xp-top"><span class="rank-tag" id="rankTag">Rookie Recruit</span><span id="xpText">0 XP</span></div>
+      <div class="xp-track"><div class="xp-fill" id="xpFill"></div></div>
+    </div>
+    <button class="hud-btn" id="musicBtn" title="Toggle music">🎵</button>
+    <button class="hud-btn" id="muteBtn" title="Mute/unmute sound effects">🔊</button>
+    <div class="timer-wrap" id="timerWrap">
+      <span style="font-size:13px;">⏱</span>
+      <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+      <span class="timer-num" id="timerNum">30</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- TITLE -->
+  <div class="screen show" id="screenTitle">
+    <div class="title-icon">🕵️</div>
+    <h1>The Signal Log</h1>
+    <div class="sub">Twelve everyday stories about keeping information safe. Read what happened, then pick the choice that actually fixes it — not just the one that sounds good. No tech background needed.</div>
+    <div class="principle-row">
+      <div class="pchip"><span class="ic">🔒</span><b>Privacy</b><span>Who's allowed to see it</span></div>
+      <div class="pchip"><span class="ic">✅</span><b>Trust</b><span>Can you believe it's real</span></div>
+      <div class="pchip"><span class="ic">⚡</span><b>Access</b><span>Can you still get to it</span></div>
+    </div>
+    <div class="level-row">
+      <div class="level-chip easy"><span class="dot"></span>Level 1 · Easy</div>
+      <div class="level-chip medium"><span class="dot"></span>Level 2 · Medium</div>
+      <div class="level-chip hard"><span class="dot"></span>Level 3 · Hard</div>
+    </div>
+    <button class="big-btn" id="startBtn">Start the Case ▶</button>
+    <div style="margin-top:14px;">
+      <a href="#" id="feedbackLinkTop" target="_blank" rel="noopener" style="color:#C9C2EE; font-size:12.5px; text-decoration:underline;">💬 Already played? Share your feedback</a>
+    </div>
+    <div class="board-panel" style="max-width:380px; margin:28px auto 0;">
+      <h3>🏆 Field Leaderboard</h3>
+      <div id="leaderboardList"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="screen" id="screenMap">
+    <h2>Case Map</h2>
+    <div class="map-sub">Tap the glowing file to open your next case. Each level gets a little trickier.</div>
+    <div class="path" id="pathEl"></div>
+  </div>
+
+  <!-- MISSION -->
+  <div class="screen" id="screenMission">
+    <div class="mission-panel">
+      <div class="kicker-row">
+        <div class="mission-kicker" id="missionKicker"></div>
+        <div class="diff-badge" id="diffBadge"></div>
+      </div>
+      <div class="mission-title" id="missionTitle"></div>
+      <div class="mission-hook" id="missionHook"></div>
+      <div class="mission-body" id="missionBody"></div>
+      <div class="mission-prompt">What's the best way to fix this?</div>
+      <div class="options" id="missionOptions"></div>
+      <div class="feedback" id="missionFeedback" style="display:none;"></div>
+      <div class="nav-row" id="missionNav" style="display:none;">
+        <button class="big-btn" id="continueBtn" style="font-size:14px; padding:11px 22px;">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen" id="screenGameOver">
+    <div class="go-icon">💔</div>
+    <h2>Case Gone Cold</h2>
+    <div class="go-sub" id="goSub">You're out of hearts. This level resets — but everything you've earned so far stays with you.</div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="lbl">XP EARNED</div><div class="val" id="goXp">0</div></div>
+      <div class="stat-box"><div class="lbl">CASES CLOSED</div><div class="val" id="goCases">0</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn" id="retryChapterBtn" style="font-size:14px; padding:12px 22px;">Retry This Level ↻</button>
+      <button class="secondary-btn" id="goRestartBtn">Restart Whole Case</button>
+    </div>
+  </div>
+
+  <!-- VICTORY -->
+  <div class="screen" id="screenVictory">
+    <div class="go-icon">🏅</div>
+    <h2>Case Closed</h2>
+    <div class="vic-sub" id="vicSub">All three levels solved. Here's your final report.</div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="lbl">TOTAL XP</div><div class="val" id="vicXp">0</div></div>
+      <div class="stat-box"><div class="lbl">FINAL RANK</div><div class="val" id="vicRank" style="font-size:14px;">—</div></div>
+      <div class="stat-box"><div class="lbl">FIRST-TRY</div><div class="val" id="vicFirstTry">0/12</div></div>
+      <div class="stat-box"><div class="lbl">HEARTS LEFT</div><div class="val" id="vicHearts">3</div></div>
+    </div>
+    <div class="bar-group">
+      <div class="bar-row"><span class="name">🔒 Privacy</span><div class="bar-track"><div class="bar-fill conf" id="confBar"></div></div><span class="pct" id="confPct">0%</span></div>
+      <div class="bar-row"><span class="name">✅ Trust</span><div class="bar-track"><div class="bar-fill integ" id="integBar"></div></div><span class="pct" id="integPct">0%</span></div>
+      <div class="bar-row"><span class="name">⚡ Access</span><div class="bar-track"><div class="bar-fill avail" id="availBar"></div></div><span class="pct" id="availPct">0%</span></div>
+    </div>
+    <div class="name-entry">
+      <input type="text" id="nameInput" maxlength="3" placeholder="AAA">
+      <button class="secondary-btn" id="saveScoreBtn">Save to Leaderboard</button>
+    </div>
+    <div class="board-panel" style="max-width:380px; margin:0 auto 22px; text-align:left;" id="vicLeaderboardWrap">
+      <h3>🏆 Field Leaderboard</h3>
+      <div id="vicLeaderboardList"></div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn" id="playAgainBtn" style="font-size:14px; padding:12px 22px;">Play Again ▶</button>
+      <a href="#" id="feedbackLinkVictory" target="_blank" rel="noopener" class="secondary-btn" style="text-decoration:none; display:inline-flex; align-items:center;">💬 Give Feedback</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const FEEDBACK_URL = "https://forms.gle/D93PeJeX5CSoExjz6";
+
+function trackEvent(path, title, extra){
+  try{
+    if(window.goatcounter && window.goatcounter.count){
+      window.goatcounter.count({ path: path, title: title || path, event: true });
+    }
+  }catch(e){}
+}
+
+/* ============ DATA ============ */
+// difficulty: "easy" (30s, 3 choices), "medium" (24s, 3 choices), "hard" (18s, 4 trickier choices)
+const CASES = [
+  /* ---------------- LEVEL 1: EASY ---------------- */
+  { pillar:"conf", difficulty:"easy", title:"The Rushed Email",
+    hook:"A coworker texts you in a hurry, right before you leave for the day.",
+    scenario:"They ask you to email a document with everyone's pay to someone called \u201cthe finance person.\u201d You don't know this person's email address, but your coworker says it's urgent.",
+    options:[
+      { text:"Send it right away — they're clearly in a hurry.", correct:false, note:"When someone is rushing you, it's easy to skip checking who you're really sending things to. That's exactly how private information ends up in the wrong hands." },
+      { text:"Send it, but ask them to double-check the email address first.", correct:false, note:"You're still only checking with the same rushed person. That doesn't prove the other address is really safe." },
+      { text:"Wait, and call your coworker directly to make sure this is really them asking.", correct:true, note:"Calling them directly is the safest way to check. If someone is pretending to be your coworker, they can't fake a phone call." }
+    ],
+    explanation:"This is about privacy — who's allowed to see private information. Always double-check before sending anything sensitive, especially when someone is rushing you." },
+
+  { pillar:"conf", difficulty:"easy", title:"The Unlocked Screen",
+    hook:"You step away from your desk to grab a coffee.",
+    scenario:"You forgot to lock your computer. When you come back, someone mentions they saw a customer's file on your screen while you were gone.",
+    options:[
+      { text:"Don't worry about it — nothing was taken.", correct:false, note:"Even if nothing was taken, someone still saw information they shouldn't have. That's still a problem." },
+      { text:"Just close the window and don't mention it to anyone.", correct:false, note:"This fixes it for now, but no one else learns there's a habit worth fixing." },
+      { text:"Lock your screen every time from now on, and tell your team what happened.", correct:true, note:"Locking your screen stops this from happening again, and telling your team helps everyone stay more careful too." }
+    ],
+    explanation:"This is about privacy. Anyone who sees something they're not supposed to — even by accident — is still a privacy problem." },
+
+  { pillar:"conf", difficulty:"easy", title:"The Fake IT Message",
+    hook:"You get a message right when you're busy and not paying full attention.",
+    scenario:"A message that looks like it's from your IT department says you must click a link and log in right now, or your account will be shut off.",
+    options:[
+      { text:"Click the link fast so you don't lose access.", correct:false, note:"This is a common trick. Messages that rush you into clicking a link are usually trying to steal your password." },
+      { text:"Ignore it and delete the message.", correct:false, note:"This keeps you safe, but the same trick message is probably going to everyone else too, and no one gets warned." },
+      { text:"Don't click it — report the message so IT can warn everyone else.", correct:true, note:"Reporting it means your coworkers get warned too, not just you." }
+    ],
+    explanation:"This is about privacy. The trick here is trying to steal your password so someone else can get into your account." },
+
+  { pillar:"integ", difficulty:"easy", title:"The Lost Files",
+    hook:"You go to open a shared folder and something's wrong.",
+    scenario:"A shared folder stops working, and it turns out this was the only copy of months of work. There's no other copy anywhere.",
+    options:[
+      { text:"Try to remember what was in the files and recreate them yourself.", correct:false, note:"Trying to remember everything is slow, and you'll probably get some things wrong without even realizing it." },
+      { text:"Ask around and hope someone happens to have an old copy saved somewhere.", correct:false, note:"This might work, but it's just luck — not a real plan." },
+      { text:"Report the problem right away, and check if there's an automatic backup somewhere.", correct:true, note:"Reporting it fast means you start looking for a real copy, instead of guessing or hoping." }
+    ],
+    explanation:"This is about being able to trust that your information is complete and correct. Keeping backups means you never have to guess." },
+
+  /* ---------------- LEVEL 2: MEDIUM ---------------- */
+  { pillar:"integ", difficulty:"medium", title:"The Changed Numbers",
+    hook:"You open a shared spreadsheet before an important meeting.",
+    scenario:"Last month's numbers look different than before. No one seems to know who changed them, or when.",
+    options:[
+      { text:"Change the numbers back to what you remember, and keep going.", correct:false, note:"If you're wrong about what they used to be, you might make things even more confusing." },
+      { text:"Ask in the group chat if anyone knows what happened, but keep using the numbers as they are for now.", correct:false, note:"Asking is a good start, but you're still using numbers that might be wrong while you wait for an answer." },
+      { text:"Check the file's history to see exactly what changed, before doing anything else.", correct:true, note:"Checking the history shows you exactly what changed and when, instead of guessing." }
+    ],
+    explanation:"This is about being able to trust the information in front of you. When something looks off, check the facts before you fix anything." },
+
+  { pillar:"avail", difficulty:"medium", title:"The Overloaded Website",
+    hook:"Your cousin calls, confused about why their online shop isn't working.",
+    scenario:"Suddenly, way too many visitors hit the website at once. Real customers can't load the page, and some purchases fail. Nothing was stolen or changed — the website is just overwhelmed.",
+    options:[
+      { text:"Add extra protection that scrambles the information sent between the website and its database.", correct:false, note:"That protects information from being read by the wrong people. It doesn't help a website that's simply overloaded." },
+      { text:"Turn on tools that filter out the extra traffic, and add more capacity to handle the load.", correct:true, note:"This is the real fix — it helps real customers get through, even while there's a flood of extra traffic." },
+      { text:"Make customers log in with an extra step.", correct:false, note:"That helps stop someone from breaking into an account. It has nothing to do with a website being overloaded." }
+    ],
+    explanation:"This is about being able to reach something when you need it. The website wasn't broken into — it just couldn't handle the traffic." },
+
+  { pillar:"integ", difficulty:"medium", title:"The Guessed Number",
+    hook:"You're entering information into a shared tracker and you're in a hurry.",
+    scenario:"You're not totally sure about one number, so you guess something close instead of looking it up.",
+    options:[
+      { text:"Enter your best guess and move on — you can fix it later if it matters.", correct:false, note:"Once it's entered, it looks just as official as a real number. Someone might use it before you ever go back to fix it." },
+      { text:"Ask a coworker if they happen to remember the number.", correct:false, note:"Their memory isn't more reliable than yours. It's still just a guess." },
+      { text:"Mark it as \u201cnot confirmed yet\u201d and go find the real number before anyone relies on it.", correct:true, note:"This way, anyone looking at it knows not to trust it yet, until it's actually checked." }
+    ],
+    explanation:"This is about trust. A guess can look exactly like a fact if you don't label it — that's the real danger." },
+
+  { pillar:"avail", difficulty:"medium", title:"The Locked Files",
+    hook:"Someone from the office finds you, looking worried.",
+    scenario:"Overnight, every file on a shared drive gets locked by an attack. No one can open anything — payroll, contracts, everything — until money is paid to unlock it.",
+    options:[
+      { text:"Keep separate, regularly updated backups, so files can be restored without paying anyone.", correct:true, note:"This is the real fix. If you already have a safe copy stored elsewhere, you don't have to pay to get your files back." },
+      { text:"Add stronger passwords to everyone's email.", correct:false, note:"That helps stop someone from breaking into an inbox. It doesn't help with files that are already locked." },
+      { text:"Tell everyone that no customer information was leaked.", correct:false, note:"That's good to communicate, but it doesn't get anyone back into the files they need right now." }
+    ],
+    explanation:"This is about being able to reach your files when you need them. Backups are what get you back in, no matter what happens." },
+
+  /* ---------------- LEVEL 3: HARD (trickier, more choices) ---------------- */
+  { pillar:"conf", difficulty:"hard", title:"The Public Folder",
+    hook:"A friend who volunteers at a local library messages you, worried.",
+    scenario:"Someone set up online storage for support requests but left it open so anyone with the link can see it — no password needed. It holds the names, emails, and account numbers of 40,000 people.",
+    options:[
+      { text:"Change the link to a new one, but leave everything else the same.", correct:false, note:"A new link can still get shared or found again the same way. The real problem — anyone can get in — isn't fixed." },
+      { text:"Ask people nicely not to share the link any further.", correct:false, note:"That depends on people being nice. It doesn't actually stop anyone from getting in." },
+      { text:"Make it so only approved people can open it, and scramble the information so it's protected either way.", correct:true, note:"This fixes the real issue — only the right people can get in, and even if the link leaks again, the information stays protected." },
+      { text:"Add a message on the page explaining what the folder is for.", correct:false, note:"Explaining the folder doesn't stop random people from being able to open it." }
+    ],
+    explanation:"This is about privacy. The real fix is controlling who's allowed in, not hoping people behave well." },
+
+  { pillar:"integ", difficulty:"hard", title:"The Secret Change",
+    hook:"Someone on your community group's board pulls you aside.",
+    scenario:"Someone who is normally allowed into a shared financial file quietly changes a few numbers before it gets submitted, hoping no one notices. Nothing was stolen, and nothing went offline — they were always allowed in.",
+    options:[
+      { text:"Scramble the file so people outside the group can't read it.", correct:false, note:"The person who changed it was already allowed in. Outsiders reading it isn't the problem here." },
+      { text:"Make everyone change their password more often.", correct:false, note:"That's about logging in safely. It has nothing to do with someone who already had permission making a sneaky change." },
+      { text:"Turn on a record of who changes what, and only give people access to the parts they actually need.", correct:true, note:"This catches exactly this kind of quiet change, and limits who's able to make it in the first place." },
+      { text:"Add a backup server somewhere else in case one goes down.", correct:false, note:"That helps if something goes offline. Nothing here went offline — the numbers were just changed." }
+    ],
+    explanation:"This is about trust. Someone used real permission to make a change they weren't supposed to — the fix is watching for changes and limiting who can make them." },
+
+  { pillar:"conf", difficulty:"hard", title:"The Coffee Shop Wifi",
+    hook:"A friend messages you from a cafe, a little worried.",
+    scenario:"Someone logs into their work account using the open wifi at a coffee shop. Someone else on the same wifi quietly watches the connection and reads their password as it's sent — nothing about the connection was scrambled.",
+    options:[
+      { text:"Make sure logins always use a scrambled (encrypted) connection, so passwords can't be read by anyone watching.", correct:true, note:"Even on a risky network, a scrambled connection means anyone watching just sees nonsense, not the real password." },
+      { text:"Give the login system more capacity to handle more people at once.", correct:false, note:"That helps with a lot of visitors at once — it has nothing to do with someone snooping on the connection." },
+      { text:"Rename the coffee shop's wifi to something harder to guess.", correct:false, note:"That's hiding, not protecting. An unscrambled connection can still be read no matter what the wifi is called." },
+      { text:"Set up a check that compares logins to what's normal, and flags anything odd.", correct:false, note:"That might catch something weird after the fact — it doesn't stop the password from being readable right now." }
+    ],
+    explanation:"This is about privacy. Private information (a password) was exposed while it was being sent. The fix is scrambling it, not the network's name or speed." },
+
+  { pillar:"integ", difficulty:"hard", title:"The Fake Redirect",
+    hook:"The last message of the week comes from someone running a small nonprofit's website.",
+    scenario:"Someone breaks in through a security gap and quietly changes settings so the real login page secretly sends people to a fake, lookalike site instead. The real website still works fine — but people are being sent somewhere else without realizing it.",
+    options:[
+      { text:"Fix the security gap, and add a way to catch any changes made without permission.", correct:true, note:"This solves the actual problem — someone changed settings who shouldn't have been able to, and future changes need to be caught quickly." },
+      { text:"Add more servers to handle more visitors.", correct:false, note:"That's about handling more traffic. The servers were never overloaded — the settings were secretly changed." },
+      { text:"Make the email system more strongly scrambled.", correct:false, note:"Email protection has nothing to do with website settings being secretly changed." },
+      { text:"Publish a report showing the website has had no downtime.", correct:false, note:"Downtime was never the problem. The site stayed up the whole time — it was quietly sending people elsewhere." }
+    ],
+    explanation:"This is about trust. Settings everyone relied on were secretly changed by someone who wasn't supposed to be able to. The fix is closing the gap and watching for changes." }
+];
+
+const pillarName = {conf:"Privacy", integ:"Trust", avail:"Access"};
+const pillarIcon = {conf:"🔒", integ:"✅", avail:"⚡"};
+const diffTime = {easy:30, medium:24, hard:18};
+const diffXpBase = {easy:10, medium:15, hard:20};
+const diffLabel = {easy:"EASY", medium:"MEDIUM", hard:"HARD"};
+const levelTitles = ["LEVEL 1 · EASY", "LEVEL 2 · MEDIUM", "LEVEL 3 · HARD"];
+const levelSubs = ["Straightforward calls — get your bearings.", "A bit more nuance in the choices.", "Sharper decoys, less time, more options."];
+const RANKS = [
+  { min:0, name:"Rookie Recruit" },
+  { min:45, name:"Field Analyst" },
+  { min:95, name:"Senior Investigator" },
+  { min:150, name:"Chief Detective" }
+];
+const MAX_XP = CASES.reduce((s,c) => s + diffXpBase[c.difficulty], 0);
+
+/* ============ STATE ============ */
+let current = 0, hearts = 3, totalXp = 0, attemptsThisCase = 0, timeLeft = 30, timerId = null;
+let completed = [];
+let tally = { conf:{correct:0,total:0}, integ:{correct:0,total:0}, avail:{correct:0,total:0} };
+let muted = false;
+let musicMuted = false;
+let audioCtx = null;
+
+/* ============ SOUND ============ */
+let musicGain = null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = musicMuted ? 0 : 0.4;
+      musicGain.connect(audioCtx.destination);
+    }catch(e){}
+  }
+}
+function beep(freq, dur, type, delay, vol){
+  if(muted || !audioCtx) return;
+  const t0 = audioCtx.currentTime + (delay||0);
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(vol||0.18, t0+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+function sndCorrect(){ beep(660,0.12,'triangle',0); beep(880,0.16,'triangle',0.1); }
+function sndWrong(){ beep(160,0.22,'sawtooth',0,0.14); }
+function sndTimeout(){ beep(120,0.35,'square',0,0.16); }
+function sndRankUp(){ beep(520,0.12,'triangle',0); beep(660,0.12,'triangle',0.12); beep(880,0.2,'triangle',0.24); }
+function sndHeartLost(){ beep(300,0.15,'square',0,0.15); beep(220,0.2,'square',0.1,0.15); }
+function sndVictory(){ [523,659,784,1047].forEach((f,i)=>beep(f,0.22,'triangle',i*0.14)); }
+function sndGameOver(){ beep(220,0.3,'sawtooth',0,0.15); beep(160,0.4,'sawtooth',0.25,0.15); }
+function sndClick(){ beep(440,0.06,'sine',0,0.1); }
+
+document.getElementById('muteBtn').addEventListener('click', () => {
+  muted = !muted;
+  document.getElementById('muteBtn').textContent = muted ? '🔇' : '🔊';
+});
+document.getElementById('musicBtn').addEventListener('click', () => {
+  musicMuted = !musicMuted;
+  document.getElementById('musicBtn').style.opacity = musicMuted ? '0.4' : '1';
+  if(musicGain) musicGain.gain.setTargetAtTime(musicMuted ? 0 : 0.4, audioCtx.currentTime, 0.15);
+});
+
+/* ============ BACKGROUND MUSIC (procedural, looping) ============ */
+// A soft, slightly mysterious four-chord loop — arpeggiated over a low pulsing bass.
+const MUSIC_CHORDS = [
+  [220.00, 261.63, 329.63, 392.00],  // Am
+  [174.61, 220.00, 261.63, 329.63],  // F
+  [196.00, 246.94, 293.66, 349.23],  // Gish
+  [164.81, 207.65, 246.94, 293.66]   // Em
+];
+const NOTE_DUR = 0.32;
+const TOTAL_NOTES = MUSIC_CHORDS.length * 4;
+let musicPlaying = false;
+let musicNoteIndex = 0;
+let musicNextNoteTime = 0;
+let musicSchedulerId = null;
+
+function playMusicTone(freq, time, dur, type, peakVol){
+  if(!audioCtx || !musicGain) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1400;
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, time);
+  gain.gain.setValueAtTime(0, time);
+  gain.gain.linearRampToValueAtTime(peakVol, time + 0.04);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  osc.connect(filter); filter.connect(gain); gain.connect(musicGain);
+  osc.start(time); osc.stop(time + dur + 0.02);
+}
+
+function scheduleMusicNote(index, time){
+  const chordIdx = Math.floor(index / 4) % MUSIC_CHORDS.length;
+  const noteIdx = index % 4;
+  const chord = MUSIC_CHORDS[chordIdx];
+  playMusicTone(chord[noteIdx], time, NOTE_DUR * 1.7, 'triangle', 0.09);
+  if(noteIdx === 0){
+    playMusicTone(chord[0] / 2, time, NOTE_DUR * 3.4, 'sine', 0.1);
+  }
+}
+
+function musicScheduler(){
+  if(!audioCtx) return;
+  while(musicNextNoteTime < audioCtx.currentTime + 0.25){
+    scheduleMusicNote(musicNoteIndex, musicNextNoteTime);
+    musicNextNoteTime += NOTE_DUR;
+    musicNoteIndex = (musicNoteIndex + 1) % TOTAL_NOTES;
+  }
+  musicSchedulerId = setTimeout(musicScheduler, 60);
+}
+
+function startMusic(){
+  if(musicPlaying || !audioCtx) return;
+  musicPlaying = true;
+  musicNoteIndex = 0;
+  musicNextNoteTime = audioCtx.currentTime + 0.15;
+  musicScheduler();
+}
+
+/* ============ HELPERS ============ */
+function rankFor(xp){
+  let r = RANKS[0];
+  for(const rk of RANKS){ if(xp >= rk.min) r = rk; }
+  return r;
+}
+function calcXp(difficulty, attempts){
+  const base = diffXpBase[difficulty];
+  if(attempts === 1) return base;
+  if(attempts === 2) return Math.round(base * 0.66);
+  return Math.round(base * 0.33);
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+}
+function updateHud(){
+  const heartsEl = document.getElementById('hearts');
+  heartsEl.innerHTML = '';
+  for(let i=0;i<3;i++){
+    const span = document.createElement('span');
+    span.className = 'heart' + (i < hearts ? '' : ' lost');
+    span.textContent = i < hearts ? '❤️' : '🖤';
+    heartsEl.appendChild(span);
+  }
+  const rank = rankFor(totalXp);
+  document.getElementById('rankTag').textContent = rank.name;
+  document.getElementById('xpText').textContent = totalXp + ' XP';
+  document.getElementById('xpFill').style.width = Math.min(100, Math.round((totalXp/MAX_XP)*100)) + '%';
+}
+
+/* ============ LEADERBOARD ============ */
+function getLeaderboard(){
+  try{ return JSON.parse(localStorage.getItem('signalLogLeaderboard')||'[]'); }catch(e){ return []; }
+}
+function saveLeaderboard(list){
+  try{ localStorage.setItem('signalLogLeaderboard', JSON.stringify(list)); }catch(e){}
+}
+function renderLeaderboard(targetId){
+  const list = getLeaderboard().sort((a,b)=>b.xp-a.xp).slice(0,5);
+  const el = document.getElementById(targetId);
+  if(list.length === 0){ el.innerHTML = '<div class="lb-empty">No runs logged yet — be the first agent on the board.</div>'; return; }
+  el.innerHTML = list.map((r,i) => `
+    <div class="lb-row"><span class="lb-rank">#${i+1}</span><span class="lb-name">${r.name}</span><span class="lb-xp">${r.xp} XP</span></div>
+  `).join('');
+}
+
+/* ============ GAME FLOW ============ */
+document.getElementById('startBtn').addEventListener('click', () => {
+  ensureAudio(); sndClick(); startMusic();
+  trackEvent('/game-started', 'Game started');
+  resetRun();
+  showScreen('screenMap');
+  document.getElementById('hud').classList.add('show');
+  renderMap();
+});
+
+function resetRun(){
+  current = 0; hearts = 3; totalXp = 0; completed = [];
+  tally = { conf:{correct:0,total:0}, integ:{correct:0,total:0}, avail:{correct:0,total:0} };
+  updateHud();
+}
+
+function renderMap(){
+  document.getElementById('timerWrap').classList.remove('show');
+  const pathEl = document.getElementById('pathEl');
+  pathEl.innerHTML = '';
+  CASES.forEach((c, i) => {
+    if(i % 4 === 0){
+      const lvl = i/4;
+      const lbl = document.createElement('div');
+      lbl.className = 'act-label';
+      lbl.style.color = lvl === 0 ? 'var(--easy)' : lvl === 1 ? 'var(--medium)' : 'var(--hard)';
+      lbl.textContent = levelTitles[lvl];
+      pathEl.appendChild(lbl);
+      const sub = document.createElement('div');
+      sub.className = 'act-sub';
+      sub.textContent = levelSubs[lvl];
+      pathEl.appendChild(sub);
+    }
+    const done = completed.find(x => x.index === i);
+    const isAvail = i === current && !done;
+    const row = document.createElement('div');
+    row.className = 'node-row ' + (i % 2 === 0 ? 'left' : 'right');
+
+    const btn = document.createElement('button');
+    btn.className = 'node';
+    btn.disabled = !(isAvail);
+    let badgeClass = 'node-badge';
+    let icon = '🔒';
+    if(done){ badgeClass += ' done ' + c.pillar; icon = pillarIcon[c.pillar]; }
+    else if(isAvail){ badgeClass += ' avail'; icon = pillarIcon[c.pillar]; }
+    else { badgeClass += ' locked'; icon = '🔒'; }
+    btn.innerHTML =
+      '<div class="'+badgeClass+'">' + (done ? '✓' : icon) + '</div>' +
+      (done && done.firstTry ? '<div class="node-star">⭐</div>' : '') +
+      '<div class="node-label">' + String(i+1).padStart(2,'0') + '. ' + c.title + '</div>';
+    btn.addEventListener('click', () => { if(isAvail){ sndClick(); startMission(i); } });
+    row.appendChild(btn);
+    pathEl.appendChild(row);
+  });
+}
+
+function startMission(index){
+  current = index;
+  attemptsThisCase = 0;
+  const c = CASES[current];
+  showScreen('screenMission');
+
+  document.getElementById('missionKicker').className = 'mission-kicker ' + c.pillar;
+  document.getElementById('missionKicker').textContent = pillarIcon[c.pillar] + ' ' + pillarName[c.pillar].toUpperCase() + ' — FILE ' + String(current+1).padStart(2,'0');
+  document.getElementById('diffBadge').className = 'diff-badge ' + c.difficulty;
+  document.getElementById('diffBadge').textContent = diffLabel[c.difficulty];
+  document.getElementById('missionTitle').textContent = c.title;
+  document.getElementById('missionHook').textContent = c.hook || '';
+  document.getElementById('missionBody').textContent = c.scenario;
+  document.getElementById('missionFeedback').style.display = 'none';
+  document.getElementById('missionNav').style.display = 'none';
+
+  const optsEl = document.getElementById('missionOptions');
+  optsEl.innerHTML = '';
+  c.options.forEach((opt, idx) => {
+    const b = document.createElement('button');
+    b.className = 'option';
+    b.innerHTML = '<span class="letter">' + String.fromCharCode(65+idx) + '</span><span>' + opt.text + '</span>';
+    b.addEventListener('click', () => chooseOption(idx));
+    optsEl.appendChild(b);
+  });
+
+  startTimer(diffTime[c.difficulty]);
+}
+
+function startTimer(limit){
+  clearInterval(timerId);
+  timeLeft = limit;
+  const wrap = document.getElementById('timerWrap');
+  const fill = document.getElementById('timerFill');
+  const num = document.getElementById('timerNum');
+  wrap.classList.add('show');
+  fill.className = 'timer-fill';
+  fill.style.width = '100%';
+  num.textContent = timeLeft;
+  timerId = setInterval(() => {
+    timeLeft -= 1;
+    const pct = Math.max(0,(timeLeft/limit)*100);
+    fill.style.width = pct + '%';
+    num.textContent = Math.max(0,timeLeft);
+    if(timeLeft <= Math.ceil(limit*0.35) && timeLeft > Math.ceil(limit*0.15)) fill.classList.add('warn');
+    if(timeLeft <= Math.ceil(limit*0.15)){ fill.classList.remove('warn'); fill.classList.add('danger'); }
+    if(timeLeft <= 0){
+      clearInterval(timerId);
+      handleTimeout();
+    }
+  }, 1000);
+}
+function stopTimer(){ clearInterval(timerId); document.getElementById('timerWrap').classList.remove('show'); }
+
+function handleTimeout(){
+  stopTimer();
+  sndTimeout();
+  const c = CASES[current];
+  const optsEl = document.getElementById('missionOptions');
+  Array.from(optsEl.children).forEach((b,idx) => {
+    b.disabled = true;
+    if(c.options[idx].correct) b.classList.add('correct');
+  });
+  loseHeart(() => finishCase(0, true));
+}
+
+function chooseOption(idx){
+  const c = CASES[current];
+  const optsEl = document.getElementById('missionOptions');
+  const btn = optsEl.children[idx];
+  if(btn.disabled) return;
+  const opt = c.options[idx];
+  attemptsThisCase++;
+
+  if(opt.correct){
+    stopTimer();
+    Array.from(optsEl.children).forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    sndCorrect();
+    const xp = calcXp(c.difficulty, attemptsThisCase);
+    finishCase(xp, false);
+  } else {
+    btn.classList.add('shake');
+    sndWrong();
+    setTimeout(() => {
+      btn.classList.remove('shake');
+      btn.classList.add('eliminated');
+      btn.disabled = true;
+    }, 380);
+    loseHeart();
+  }
+}
+
+function loseHeart(afterCb){
+  hearts = Math.max(0, hearts - 1);
+  sndHeartLost();
+  updateHud();
+  if(hearts <= 0){
+    stopTimer();
+    setTimeout(() => triggerGameOver(), 500);
+  } else if(afterCb){
+    afterCb();
+  }
+}
+
+function finishCase(xp, timedOut){
+  const c = CASES[current];
+  const firstTry = attemptsThisCase === 1 && !timedOut;
+  tally[c.pillar].total += 1;
+  if(!timedOut) tally[c.pillar].correct += 1;
+
+  const prevRank = rankFor(totalXp).name;
+  totalXp += xp;
+  updateHud();
+  const newRank = rankFor(totalXp).name;
+
+  completed.push({ index: current, title: c.title, pillar: c.pillar, firstTry, attempts: attemptsThisCase, xp, timedOut });
+
+  const fb = document.getElementById('missionFeedback');
+  fb.style.display = 'block';
+  fb.className = 'feedback ' + c.pillar;
+  const correctOpt = c.options.find(o => o.correct);
+  const headline = timedOut ? "Time's up — here's the fix" : (firstTry ? "Correct — nailed it first try!" : "Correct!");
+  fb.innerHTML =
+    '<div class="verdict">' + headline + (xp > 0 ? '<span class="xp-gain">+' + xp + ' XP</span>' : '') + '</div>' +
+    '<div>' + correctOpt.note + '</div>' +
+    '<div class="why">' + c.explanation + '</div>' +
+    (newRank !== prevRank ? '<div class="why" style="color:#B5570F; font-weight:700;">⭐ Rank up! You are now a ' + newRank + '.</div>' : '');
+  if(newRank !== prevRank) sndRankUp();
+
+  document.getElementById('missionNav').style.display = 'flex';
+  document.getElementById('continueBtn').textContent = current < CASES.length - 1 ? 'Continue →' : 'Close the Log →';
+  document.getElementById('continueBtn').onclick = () => {
+    sndClick();
+    if(current < CASES.length - 1){ current++; showScreen('screenMap'); renderMap(); }
+    else { triggerVictory(); }
+  };
+}
+
+function currentChapterStart(){ return Math.floor(current/4)*4; }
+
+function triggerGameOver(){
+  sndGameOver();
+  trackEvent('/game-over', 'Ran out of hearts');
+  const chapterStart = currentChapterStart();
+  document.getElementById('goXp').textContent = totalXp;
+  document.getElementById('goCases').textContent = completed.length;
+  showScreen('screenGameOver');
+
+  document.getElementById('retryChapterBtn').onclick = () => {
+    sndClick();
+    const toUndo = completed.filter(c => c.index >= chapterStart && c.index < current);
+    toUndo.forEach(c => {
+      totalXp -= c.xp;
+      tally[c.pillar].total -= 1;
+      if(!c.timedOut) tally[c.pillar].correct -= 1;
+    });
+    completed = completed.filter(c => !(c.index >= chapterStart && c.index < current));
+    hearts = 3;
+    current = chapterStart;
+    updateHud();
+    showScreen('screenMap');
+    renderMap();
+  };
+  document.getElementById('goRestartBtn').onclick = () => {
+    sndClick();
+    resetRun();
+    showScreen('screenMap');
+    renderMap();
+  };
+}
+
+function triggerVictory(){
+  sndVictory();
+  const firstTryCount = completed.filter(a => a.firstTry).length;
+  const rank = rankFor(totalXp);
+  trackEvent('/game-completed', 'Completed — ' + totalXp + ' XP, ' + rank.name);
+  document.getElementById('vicXp').textContent = totalXp;
+  document.getElementById('vicRank').textContent = rank.name;
+  document.getElementById('vicFirstTry').textContent = firstTryCount + '/' + CASES.length;
+  document.getElementById('vicHearts').textContent = hearts;
+
+  const pctOf = (p) => tally[p].total ? Math.round((tally[p].correct/tally[p].total)*100) : 0;
+  ['conf','integ','avail'].forEach(p => {
+    const pct = pctOf(p);
+    document.getElementById(p+'Bar').style.width = pct + '%';
+    document.getElementById(p+'Pct').textContent = pct + '%';
+  });
+
+  document.getElementById('nameInput').value = '';
+  renderLeaderboard('vicLeaderboardList');
+  showScreen('screenVictory');
+}
+
+document.getElementById('saveScoreBtn').addEventListener('click', () => {
+  const input = document.getElementById('nameInput');
+  let name = (input.value || 'YOU').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
+  if(!name) name = 'YOU';
+  const list = getLeaderboard();
+  list.push({ name, xp: totalXp, date: Date.now() });
+  saveLeaderboard(list);
+  renderLeaderboard('vicLeaderboardList');
+  input.value = '';
+  sndClick();
+});
+
+document.getElementById('playAgainBtn').addEventListener('click', () => {
+  sndClick();
+  resetRun();
+  showScreen('screenMap');
+  renderMap();
+});
+
+/* init */
+document.getElementById('feedbackLinkTop').href = FEEDBACK_URL;
+document.getElementById('feedbackLinkVictory').href = FEEDBACK_URL;
+document.getElementById('feedbackLinkTop').addEventListener('click', () => trackEvent('/feedback-click', 'Feedback link clicked (title)'));
+document.getElementById('feedbackLinkVictory').addEventListener('click', () => trackEvent('/feedback-click', 'Feedback link clicked (victory)'));
+renderLeaderboard('leaderboardList');
+updateHud();
+</script>
+</body>
+</html>
